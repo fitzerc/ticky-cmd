@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="TimeEntry/TimeEntry.fs" />
+    <Compile Include="TimeEntry/RunningTimeEntry.fs" />
+    <Compile Include="TimeEntry/Info.fs" />
+    <Compile Include="TickyIo/FileIo.fs" />
+    <Compile Include="TickyIo/UserIo.fs" />
+    <Compile Include="Actions.fs" />
+    <Compile Include="CmdLineArgs.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FSharp.Data" Version="6.4.0" />
+  </ItemGroup>
+
+</Project>
