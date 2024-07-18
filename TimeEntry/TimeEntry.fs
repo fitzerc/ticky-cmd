@@ -27,7 +27,7 @@ module TimeEntry =
             timeEntry.Task,
             timeEntry.Tag,
             timeEntry.StartTime.ToString(dateFormat),
-            timeEntry.StartTime.ToString(dateFormat),
+            timeEntry.EndTime.ToString(dateFormat),
             timeEntry.Elapsed.ToString(@"hh\:mm\:ss")
         )
 

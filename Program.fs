@@ -31,6 +31,8 @@ match action with
 | Stop ->
     match info.RunningEntry with
     | Some runningTimer ->
+        printfn "%A" info
+
         match UserIo.promptAndResult ("Stop this timer?") with
         | Save ->
             runningTimer
