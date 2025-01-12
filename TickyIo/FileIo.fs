@@ -8,8 +8,10 @@ module FileIo =
     let private tempFileName = ".ticky"
     let private dateFormat = "yyyy-MM-dd"
 
-    //C:\Users\{user}\AppData\Local\Temp\Ticky
-    let tempDirPath = Path.Combine(Path.GetTempPath(), @"Ticky\")
+    //C:\Users\{user}\AppData\Local\Ticky
+    let tempDirPath =
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Ticky\")
+
     let tempFilePath = tempDirPath + tempFileName
 
     let private consolidatedFilePath =

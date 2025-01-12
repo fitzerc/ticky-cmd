@@ -10,7 +10,7 @@ let info =
     { TempPath = FileIo.tempDirPath
       RunningEntry = runningEntry
       TimerStatus =
-        match FileIo.getRunningEntry with
+        match runningEntry with
         | Some _ -> Running
         | None -> Stopped }
 
