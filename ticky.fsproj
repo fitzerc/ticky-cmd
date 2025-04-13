@@ -9,6 +9,7 @@
     <Compile Include="TimeEntry/TimeEntry.fs" />
     <Compile Include="TimeEntry/RunningTimeEntry.fs" />
     <Compile Include="TimeEntry/Info.fs" />
+    <Compile Include="TickyIo/Config.fs" />
     <Compile Include="TickyIo/FileIo.fs" />
     <Compile Include="TickyIo/UserIo.fs" />
     <Compile Include="Actions.fs" />

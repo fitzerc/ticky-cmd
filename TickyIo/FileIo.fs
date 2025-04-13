@@ -3,41 +3,48 @@ namespace Ticky
 open System
 open System.IO
 open Ticky.TimeEntry
+open TickyIo.Config
 
 module FileIo =
     let private tempFileName = ".ticky"
     let private dateFormat = "yyyy-MM-dd"
 
-    //C:\Users\{user}\AppData\Local\Ticky
     let tempDirPath =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Ticky\")
 
-    let tempFilePath = tempDirPath + tempFileName
+    let tempFilePath = Path.Combine(getOutputDirectory(), tempFileName)
 
     let private consolidatedFilePath =
-        $"{tempDirPath}consolidated-{DateTime.Now.ToString(dateFormat)}.csv"
+        Path.Combine(getOutputDirectory(), $"consolidated-{DateTime.Now.ToString(dateFormat)}.csv")
 
     let private todaysFileName = $"ticky-{DateTime.Now.ToString(dateFormat)}.csv"
 
+    let getOutputFilePath fileName =
+        let outputDir = TickyIo.Config.getOutputDirectory()
+        Path.Combine(outputDir, fileName)
+
     let private appendToFile directory filename text =
-        let path = directory + filename
+        let path = Path.Combine(directory, filename)
         File.AppendAllText(path, text)
 
-    let appendToTempFile = appendToFile tempDirPath tempFileName
+    let appendToTempFile = appendToFile (getOutputDirectory()) tempFileName
 
     let appendToTodaysFile input =
-        let filePath = tempDirPath + todaysFileName
+        let filePath = getOutputFilePath todaysFileName
 
         if File.Exists filePath then
-            appendToFile tempDirPath todaysFileName input
+            appendToFile (getOutputDirectory()) todaysFileName input
         else
-            appendToFile tempDirPath todaysFileName $"{TimeEntry.getProps}\n"
-            appendToFile tempDirPath todaysFileName input
+            appendToFile (getOutputDirectory()) todaysFileName $"{TimeEntry.getProps}\n"
+            appendToFile (getOutputDirectory()) todaysFileName input
 
     let writeConsolidatedFile text =
-        File.AppendAllLines(consolidatedFilePath, text)
+        let filePath = getOutputFilePath $"consolidated-{DateTime.Now.ToString(dateFormat)}.csv"
+        File.AppendAllLines(filePath, text)
 
-    let deleteTempFile () = File.Delete tempFilePath
+    let deleteTempFile () = 
+        let filePath = getOutputFilePath tempFileName
+        File.Delete filePath
 
     let private readFromFile (path) =
         try
@@ -70,7 +77,7 @@ module FileIo =
 
     let getCsvFilesOpt () =
         try
-            Directory.GetFiles(tempDirPath, "*.csv") |> Some
+            Directory.GetFiles(getOutputDirectory(), "*.csv") |> Some
         with _ ->
             None
 
