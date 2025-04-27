@@ -91,6 +91,24 @@ module FileIo =
             let updatedFile = Array.append newFile file
             consolidate (tailFiles, updatedFile)
 
+    let private summarizeByProject (entries: string array) =
+        entries
+        |> Array.filter (fun entry -> not (entry.StartsWith("Project"))) // Exclude header row
+        |> Array.map (fun entry -> entry.Split(','))
+        |> Array.groupBy (fun fields -> fields.[0]) // Group by Project (first column)
+        |> Array.map (fun (project, records) ->
+            let totalElapsed =
+                records
+                |> Array.sumBy (fun fields ->
+                    let elapsed = System.TimeSpan.Parse(fields.[5]) // Elapsed is the 6th column
+                    elapsed.TotalSeconds
+                )
+            let totalElapsedTime = System.TimeSpan.FromSeconds(totalElapsed).ToString("hh\:mm\:ss")
+            let entryCount = records.Length
+            $"{project},{entryCount},{totalElapsedTime}")
+
     let consolidateFiles files =
         let header = [| TimeEntry.getProps |]
-        consolidate (files, header)
+        let consolidatedEntries = consolidate (files, header)
+        let groupedSummary = summarizeByProject consolidatedEntries |> Array.append [| ""; "Project Summary" |]
+        Array.append consolidatedEntries groupedSummary
