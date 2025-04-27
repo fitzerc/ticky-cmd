@@ -88,8 +88,9 @@ module FileIo =
             let file = File.ReadAllLines(Array.head (files)) |> Array.tail //skip header row
             let tailFiles = Array.tail files
 
-            let updatedFile = Array.append file newFile
+            let updatedFile = Array.append newFile file
             consolidate (tailFiles, updatedFile)
 
     let consolidateFiles files =
-        consolidate (files, [| TimeEntry.getProps |])
+        let header = [| TimeEntry.getProps |]
+        consolidate (files, header)
