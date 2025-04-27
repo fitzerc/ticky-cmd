@@ -105,10 +105,27 @@ module FileIo =
                 )
             let totalElapsedTime = System.TimeSpan.FromSeconds(totalElapsed).ToString("hh\:mm\:ss")
             let entryCount = records.Length
-            $"{project},{entryCount},{totalElapsedTime}")
+            $"{project},{totalElapsedTime},{entryCount}")
+
+    let private summarizeByTag (entries: string array) =
+        entries
+        |> Array.filter (fun entry -> not (entry.StartsWith("Project"))) // Exclude header row
+        |> Array.map (fun entry -> entry.Split(','))
+        |> Array.groupBy (fun fields -> fields.[2]) // Group by Tag (third column)
+        |> Array.map (fun (tag, records) ->
+            let totalElapsed =
+                records
+                |> Array.sumBy (fun fields ->
+                    let elapsed = System.TimeSpan.Parse(fields.[5]) // Elapsed is the 6th column
+                    elapsed.TotalSeconds
+                )
+            let totalElapsedTime = System.TimeSpan.FromSeconds(totalElapsed).ToString("hh\:mm\:ss")
+            let entryCount = records.Length
+            $"{tag},{totalElapsedTime},{entryCount}")
 
     let consolidateFiles files =
         let header = [| TimeEntry.getProps |]
         let consolidatedEntries = consolidate (files, header)
         let groupedSummary = summarizeByProject consolidatedEntries |> Array.append [| ""; "Project Summary" |]
-        Array.append consolidatedEntries groupedSummary
+        let tagSummary = summarizeByTag consolidatedEntries |> Array.append [| ""; "Tag Summary" |]
+        Array.append (Array.append consolidatedEntries groupedSummary) tagSummary
