@@ -76,16 +76,29 @@ match action with
         printfn "Timer is not running"
         displayStatusMessage "Error"
 | Consolidate ->
-    match FileIo.getCsvFilesOpt () with
-    | Some files ->
-        files |> FileIo.consolidateFiles |> Array.toSeq |> FileIo.writeConsolidatedFile
+    let args = Environment.GetCommandLineArgs()
+    if args |> Array.contains "-d" then
+        match FileIo.getCsvFilesOpt () with
+        | Some files ->
+            files |> FileIo.consolidateFilesForDay |> ignore
 
-        printfn "Files consolidated"
-        displayStatusMessage "Success"
+            printfn "Daily summary file generated"
+            displayStatusMessage "Success"
 
-    | None -> 
-        printfn "Nothing to consolidate"
-        displayStatusMessage "Error"
+        | None -> 
+            printfn "Nothing to consolidate"
+            displayStatusMessage "Error"
+    else
+        match FileIo.getCsvFilesOpt () with
+        | Some files ->
+            files |> FileIo.consolidateFiles |> Array.toSeq |> FileIo.writeConsolidatedFile
+
+            printfn "Files consolidated"
+            displayStatusMessage "Success"
+
+        | None -> 
+            printfn "Nothing to consolidate"
+            displayStatusMessage "Error"
 | Info -> 
     printfn "%A" info
     displayStatusMessage "InProgress"

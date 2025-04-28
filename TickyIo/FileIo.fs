@@ -129,3 +129,23 @@ module FileIo =
         let groupedSummary = summarizeByProject consolidatedEntries |> Array.append [| ""; "Project Summary" |]
         let tagSummary = summarizeByTag consolidatedEntries |> Array.append [| ""; "Tag Summary" |]
         Array.append (Array.append consolidatedEntries groupedSummary) tagSummary
+
+    let consolidateFilesForDay (files: string array) =
+        let header = [| TimeEntry.getProps |]
+        let todayFileName = $"ticky-{DateTime.Now.ToString(dateFormat)}.csv"
+        let todayFile = files |> Array.tryFind (fun file -> file.EndsWith(todayFileName))
+
+        match todayFile with
+        | Some file ->
+            let consolidatedEntries = consolidate ([| file |], header)
+            let groupedSummary = summarizeByProject consolidatedEntries |> Array.append [| ""; "Project Summary" |]
+            let tagSummary = summarizeByTag consolidatedEntries |> Array.append [| ""; "Tag Summary" |]
+            let dailySummary = Array.append groupedSummary tagSummary
+
+            let dailySummaryFileName = $"daily-summary-{DateTime.Now.ToString(dateFormat)}.csv"
+            let dailySummaryFilePath = getOutputFilePath dailySummaryFileName
+
+            File.WriteAllLines(dailySummaryFilePath, dailySummary)
+            dailySummary
+        | None ->
+            [| "No entries found for today." |]
