@@ -88,8 +88,64 @@ module FileIo =
             let file = File.ReadAllLines(Array.head (files)) |> Array.tail //skip header row
             let tailFiles = Array.tail files
 
-            let updatedFile = Array.append file newFile
+            let updatedFile = Array.append newFile file
             consolidate (tailFiles, updatedFile)
 
+    let private summarizeByProject (entries: string array) =
+        entries
+        |> Array.filter (fun entry -> not (entry.StartsWith("Project"))) // Exclude header row
+        |> Array.map (fun entry -> entry.Split(','))
+        |> Array.groupBy (fun fields -> fields.[0]) // Group by Project (first column)
+        |> Array.map (fun (project, records) ->
+            let totalElapsed =
+                records
+                |> Array.sumBy (fun fields ->
+                    let elapsed = System.TimeSpan.Parse(fields.[5]) // Elapsed is the 6th column
+                    elapsed.TotalSeconds
+                )
+            let totalElapsedTime = System.TimeSpan.FromSeconds(totalElapsed).ToString("hh\:mm\:ss")
+            let entryCount = records.Length
+            $"{project},{totalElapsedTime},{entryCount}")
+
+    let private summarizeByTag (entries: string array) =
+        entries
+        |> Array.filter (fun entry -> not (entry.StartsWith("Project"))) // Exclude header row
+        |> Array.map (fun entry -> entry.Split(','))
+        |> Array.groupBy (fun fields -> fields.[2]) // Group by Tag (third column)
+        |> Array.map (fun (tag, records) ->
+            let totalElapsed =
+                records
+                |> Array.sumBy (fun fields ->
+                    let elapsed = System.TimeSpan.Parse(fields.[5]) // Elapsed is the 6th column
+                    elapsed.TotalSeconds
+                )
+            let totalElapsedTime = System.TimeSpan.FromSeconds(totalElapsed).ToString("hh\:mm\:ss")
+            let entryCount = records.Length
+            $"{tag},{totalElapsedTime},{entryCount}")
+
     let consolidateFiles files =
-        consolidate (files, [| TimeEntry.getProps |])
+        let header = [| TimeEntry.getProps |]
+        let consolidatedEntries = consolidate (files, header)
+        let groupedSummary = summarizeByProject consolidatedEntries |> Array.append [| ""; "Project Summary" |]
+        let tagSummary = summarizeByTag consolidatedEntries |> Array.append [| ""; "Tag Summary" |]
+        Array.append (Array.append consolidatedEntries groupedSummary) tagSummary
+
+    let consolidateFilesForDay (files: string array) =
+        let header = [| TimeEntry.getProps |]
+        let todayFileName = $"ticky-{DateTime.Now.ToString(dateFormat)}.csv"
+        let todayFile = files |> Array.tryFind (fun file -> file.EndsWith(todayFileName))
+
+        match todayFile with
+        | Some file ->
+            let consolidatedEntries = consolidate ([| file |], header)
+            let groupedSummary = summarizeByProject consolidatedEntries |> Array.append [| ""; "Project Summary" |]
+            let tagSummary = summarizeByTag consolidatedEntries |> Array.append [| ""; "Tag Summary" |]
+            let dailySummary = Array.append groupedSummary tagSummary
+
+            let dailySummaryFileName = $"daily-summary-{DateTime.Now.ToString(dateFormat)}.csv"
+            let dailySummaryFilePath = getOutputFilePath dailySummaryFileName
+
+            File.WriteAllLines(dailySummaryFilePath, dailySummary)
+            dailySummary
+        | None ->
+            [| "No entries found for today." |]
