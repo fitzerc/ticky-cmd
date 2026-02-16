@@ -8,25 +8,33 @@ type SaveResponse =
     | Cancel
 
 module UserIo =
+    let private readLine prompt =
+        printfn "%s" prompt
+        printf "  > "
+        Console.ReadLine() |> Option.ofObj |> Option.defaultValue ""
+
     let printStr str = printfn "%s\n" str
     let printSymbol symbol = printfn "%A\n" symbol
 
     let promptAndResult verbiage =
-        printfn $"{verbiage} y/n"
+        printfn ""
+        printfn "? %s" verbiage
+        printf "  (yes/no) [y/n]: "
 
-        match Console.ReadLine() with
-        | "y" -> Save
+        match Console.ReadLine() |> Option.ofObj |> Option.defaultValue "" with
+        | "y" | "Y" | "yes" | "Yes" -> Save
         | _ -> Cancel
 
     let promptForEntryDetails () =
-        printfn "Project:"
-        let proj = Console.ReadLine()
+        printfn ""
+        printfn "Start New Timer"
+        printfn "---------------"
+        
+        let proj = readLine "Project name:"
+        let task = readLine "What are you working on?"
+        let tag = readLine "Tag (optional):"
 
-        printfn "Task:"
-        let task = Console.ReadLine()
-
-        printfn "Tag:"
-        let tag = Console.ReadLine()
+        printfn ""
 
         { Project = proj
           Task = task

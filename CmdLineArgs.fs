@@ -9,4 +9,5 @@ module CmdLineArgs =
         | "info" :: xs -> Info
         | "stop" :: xs -> Stop
         | "consolidate" :: xs -> Consolidate
-        | _ -> Info
+        | [] -> Dashboard
+        | _ -> Dashboard

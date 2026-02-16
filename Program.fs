@@ -1,10 +1,14 @@
-﻿open System
+open System
 open System.IO
 open System.Text.Json
 open System.Collections.Generic
 open Ticky
 open Ticky.TickyIo
+open Ticky.TickyIo.ConsoleUtils
+open Ticky.TickyIo.Dashboard
 open Ticky.TimeEntry
+
+type TickyAction = Ticky.Action
 
 // Load configuration from appsettings.json
 let loadConfig () : Dictionary<string, string> =
@@ -18,18 +22,11 @@ let tempPath =
     | true, path -> path
     | _ -> "Default/Temp/Path"
 
-// Call the displayStatusMessage function to show status updates
-let displayStatusMessage status =
-    match status with
-    | "Success" -> printfn "✅ Operation completed successfully!"
-    | "Error" -> printfn "❌ An error occurred during the operation."
-    | "InProgress" -> printfn "⏳ Operation is in progress..."
-    | _ -> printfn "ℹ️ Status: %s" status
-
 //Main
-let runningEntry = FileIo.getRunningEntry
+let getRunningEntry () = FileIo.getRunningEntry ()
 
-let info =
+let getInfo () =
+    let runningEntry = getRunningEntry ()
     { TempPath = tempPath
       RunningEntry = runningEntry
       TimerStatus =
@@ -37,70 +34,140 @@ let info =
         | Some _ -> Running
         | None -> Stopped }
 
-let action =
-    Environment.GetCommandLineArgs() |> Array.toList |> CmdLineArgs.parseToAction
-
-match action with
-| Start ->
+let doStart () =
+    let info = getInfo ()
     match info.TimerStatus with
     | Running -> 
-        printfn "Timer is already running.\n%A" info
-        displayStatusMessage "Error"
+        printfn ""
+        printError "Timer is already running!"
+        printfn ""
+        printKeyValue "Started" (info.RunningEntry |> Option.map (fun e -> ConsoleUtils.formatTime e.StartTime) |> Option.defaultValue "")
+        printKeyValue "Project" (info.RunningEntry |> Option.map (fun e -> e.Project) |> Option.defaultValue "")
+        printKeyValue "Task" (info.RunningEntry |> Option.map (fun e -> e.Task) |> Option.defaultValue "")
     | Stopped ->
-        UserIo.promptForEntryDetails ()
+        let entry = UserIo.promptForEntryDetails ()
+        entry
         |> RunningTimeEntry.ToCsv
-        |> FileIo.appendToTempFile
+        |> FileIo.writeToTempFile
 
-        printfn "Timer started"
-        displayStatusMessage "Success"
+        printfn ""
+        printSuccess "✓ Timer started"
+        printfn ""
+        ConsoleUtils.printEntryDetails entry.Project entry.Task entry.Tag entry.StartTime
 
-| Stop ->
-    match info.RunningEntry with
+let doStop (prompt: bool) =
+    let runningEntry = getRunningEntry ()
+    match runningEntry with
     | Some runningTimer ->
-        printfn "%A" info
+        printfn ""
+        printSection "Stop Timer"
+        ConsoleUtils.printEntryDetails runningTimer.Project runningTimer.Task runningTimer.Tag runningTimer.StartTime
+        
+        if prompt then
+            match UserIo.promptAndResult "Save this time entry?" with
+            | Save ->
+                runningTimer
+                |> RunningTimeEntry.toTimeEntry
+                |> TimeEntry.ToCsv
+                |> FileIo.appendToTodaysFile
 
-        match UserIo.promptAndResult ("Stop this timer?") with
-        | Save ->
+                FileIo.deleteTempFile ()
+                printfn ""
+                printSuccess "✓ Time entry saved"
+                printfn ""
+                printDim "Saved to today's log"
+
+            | Cancel -> 
+                printfn ""
+                printDim "Timer continues running..."
+        else
             runningTimer
             |> RunningTimeEntry.toTimeEntry
             |> TimeEntry.ToCsv
             |> FileIo.appendToTodaysFile
 
             FileIo.deleteTempFile ()
-            displayStatusMessage "Success"
-
-        | Cancel -> 
-            printfn "No action taken"
-            displayStatusMessage "InProgress"
+            printfn ""
+            printSuccess "✓ Time entry saved"
+            printfn ""
+            printDim "Saved to today's log"
     | None -> 
-        printfn "Timer is not running"
-        displayStatusMessage "Error"
-| Consolidate ->
+        printfn ""
+        printWarning "No timer is currently running"
+        printfn "Use 'ticky start' to begin tracking time"
+
+let doInfo () =
+    let info = getInfo ()
+    printfn ""
+    printHeader "Timer Status"
+    printTimerStatus (info.TimerStatus = Running)
+    
+    let runningEntry = getRunningEntry ()
+    match runningEntry with
+    | Some entry ->
+        printfn ""
+        ConsoleUtils.printEntryDetails entry.Project entry.Task entry.Tag entry.StartTime
+    | None ->
+        printfn ""
+        printDim "No active time entry"
+
+let doConsolidate () =
     let args = Environment.GetCommandLineArgs()
     if args |> Array.contains "-d" then
         match FileIo.getCsvFilesOpt () with
         | Some files ->
             files |> FileIo.consolidateFilesForDay |> ignore
 
-            printfn "Daily summary file generated"
-            displayStatusMessage "Success"
+            printfn ""
+            printSuccess "✓ Daily summary generated"
+            printfn ""
+            printDim "Saved to daily-summary file"
 
         | None -> 
-            printfn "Nothing to consolidate"
-            displayStatusMessage "Error"
+            printfn ""
+            printWarning "No entries found for today"
     else
         match FileIo.getCsvFilesOpt () with
         | Some files ->
             files |> FileIo.consolidateFiles |> Array.toSeq |> FileIo.writeConsolidatedFile
 
-            printfn "Files consolidated"
-            displayStatusMessage "Success"
+            printfn ""
+            printSuccess "✓ Files consolidated"
+            printfn ""
+            printDim "Saved to consolidated file"
 
         | None -> 
-            printfn "Nothing to consolidate"
-            displayStatusMessage "Error"
-| Info -> 
-    printfn "%A" info
-    displayStatusMessage "InProgress"
+            printfn ""
+            printWarning "No CSV files found to consolidate"
 
-exit 100
+let rec runDashboard () =
+    match Dashboard.displayInteractive () with
+    | Some act ->
+        match act with
+        | TickyAction.Start -> 
+            doStart ()
+            runDashboard ()
+        | TickyAction.Stop -> 
+            doStop false
+            runDashboard ()
+        | TickyAction.Info -> 
+            doInfo ()
+            runDashboard ()
+        | TickyAction.Consolidate -> 
+            doConsolidate ()
+            runDashboard ()
+        | TickyAction.Dashboard -> runDashboard ()
+    | None -> ()
+
+let action =
+    Environment.GetCommandLineArgs() |> Array.toList |> CmdLineArgs.parseToAction
+
+match action with
+| Start -> doStart ()
+| Stop -> doStop true
+| Info -> doInfo ()
+| Consolidate -> doConsolidate ()
+| Dashboard ->
+    runDashboard ()
+
+exit 0

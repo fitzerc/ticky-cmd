@@ -23,11 +23,13 @@ module FileIo =
         let outputDir = TickyIo.Config.getOutputDirectory()
         Path.Combine(outputDir, fileName)
 
-    let private appendToFile directory filename text =
+    let private appendToFile directory filename (text: string) =
         let path = Path.Combine(directory, filename)
         File.AppendAllText(path, text)
 
-    let appendToTempFile = appendToFile (getOutputDirectory()) tempFileName
+    let writeToTempFile (text: string) =
+        let path = getOutputFilePath tempFileName
+        File.WriteAllText(path, text)
 
     let appendToTodaysFile input =
         let filePath = getOutputFilePath todaysFileName
@@ -63,7 +65,7 @@ module FileIo =
         | Some lines -> Array.head lines |> Some
         | None -> None
 
-    let getRunningEntry =
+    let getRunningEntry () =
         let lineOpt = readFirstLineFromFile tempFilePath
 
         match lineOpt with
